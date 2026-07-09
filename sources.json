@@ -8,10 +8,10 @@
       "cadence": "on-demand",
       "trust_level": "high",
       "auth": { "email": "env:JIRA_EMAIL", "token": "env:JIRA_API_TOKEN" },
-      "scope": "AXON board only — READ-ONLY awareness. Not a CORTEX-owned task source. No write access, ever, at any phase.",
+      "scope": "AXON design-system work (Jira project UX, ticket codes UX-XXX) — READ-ONLY awareness. Not a CORTEX-owned task source. No write access, ever, at any phase.",
       "config": {
         "cloud_id": "5cd4df84-689c-4f03-8b47-2c73d2014b94",
-        "project_key": "AXON",
+        "project_key": "UX",
         "max_results": 50
       }
     },
