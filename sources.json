@@ -1,0 +1,59 @@
+{
+  "$schema_note": "THALAMUS source registry. One entry per source. Phase 0 is pull-only (cadence=on-demand). auth values reference secrets by name (env:NAME) and MUST NOT contain raw tokens.",
+  "sources": [
+    {
+      "id": "jira-axon",
+      "type": "jira",
+      "enabled": true,
+      "cadence": "on-demand",
+      "trust_level": "high",
+      "auth": { "email": "env:JIRA_EMAIL", "token": "env:JIRA_API_TOKEN" },
+      "scope": "AXON board only — READ-ONLY awareness. Not a CORTEX-owned task source. No write access, ever, at any phase.",
+      "config": {
+        "cloud_id": "5cd4df84-689c-4f03-8b47-2c73d2014b94",
+        "project_key": "AXON",
+        "max_results": 50
+      }
+    },
+    {
+      "id": "figma-axon-main",
+      "type": "figma",
+      "enabled": true,
+      "cadence": "on-demand",
+      "trust_level": "high",
+      "auth": { "token": "env:FIGMA_TOKEN" },
+      "scope": "AXON main branch — version activity (what changed).",
+      "config": { "file_key": "pkBhLyU8r6OCNx9Qxw0cCf", "label": "AXON main branch" }
+    },
+    {
+      "id": "figma-axon-table",
+      "type": "figma",
+      "enabled": true,
+      "cadence": "on-demand",
+      "trust_level": "high",
+      "auth": { "token": "env:FIGMA_TOKEN" },
+      "scope": "AXON table branch — version activity (what changed).",
+      "config": { "file_key": "GUJPm4a6sDzcJOQ1h9mG9H", "label": "AXON table branch" }
+    },
+    {
+      "id": "github-cortex",
+      "type": "github",
+      "enabled": true,
+      "cadence": "on-demand",
+      "trust_level": "high",
+      "auth": { "token": "env:GITHUB_TOKEN" },
+      "scope": "CORTEX repo — commits + issues/PRs. Token optional for public repos; required if private (raises rate limit either way).",
+      "config": { "repos": ["AndreDoesStuff/CORTEX"] }
+    },
+    {
+      "id": "notion-tbd",
+      "type": "notion",
+      "enabled": false,
+      "cadence": "on-demand",
+      "trust_level": "medium",
+      "auth": { "token": "env:NOTION_TOKEN" },
+      "scope": "Lower priority — wire last. Searches pages/databases shared with the integration.",
+      "config": {}
+    }
+  ]
+}

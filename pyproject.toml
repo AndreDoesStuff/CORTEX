@@ -1,0 +1,19 @@
+[project]
+name = "cortex-thalamus"
+version = "0.1.0"
+description = "CORTEX Phase 0 (THALAMUS) — on-demand intake + normalization across André's sources. Read-only, no persistence, no ranking."
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+cortex = "cortex.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cortex*"]
