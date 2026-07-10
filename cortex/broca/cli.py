@@ -13,11 +13,15 @@ import argparse
 import os
 import sys
 
+from dotenv import load_dotenv
+
 from ..hippocampus.query import Memory
 from ..hippocampus.store import MemoryStore
 from ..registry import load_sources
+from . import banks
 from .answers import Session
 from .intent import classify
+from .narrator import narrate
 from .respond import respond
 from .voice import available as voice_available
 from .voice import speak
@@ -29,13 +33,22 @@ _TAG = {"grounded": "grounded", "inferred": "inferred", "unknown": "unknown",
         "partial": "partial", "scope": "—"}
 
 
-def _handle(q, mem, session, no_voice, voice_file):
+def _handle(q, mem, session, no_voice, voice_file, trace=False):
     intent = classify(q)
     ans = respond(intent, mem, session)
+
+    # Narration: hand the fact packet to the LLM, validate, fall back to the
+    # template on any failure. "more" is a deterministic citation dump — not narrated.
+    source = "template"
     if intent.kind != "more":
+        text, source = narrate(ans.shape, ans.values, q, ans.headline)
+        ans.headline = text
+        ans.spoken = text
         session.last = ans
 
     print(f"\nCORTEX [{_TAG.get(ans.shape, ans.shape)}]: {ans.headline}")
+    if trace and intent.kind != "more":
+        print(f"   (narration: {source})")
     if intent.kind == "more" and ans.detail:
         print(ans.detail)
     elif ans.records:
@@ -51,14 +64,24 @@ def main(argv=None) -> int:
     ap.add_argument("--config", default="sources.json", help="source registry")
     ap.add_argument("--no-voice", action="store_true", help="print only, don't speak")
     ap.add_argument("--voice-file", help="write spoken audio to this .aiff (for testing)")
+    ap.add_argument("--seed", type=int, help="pin fallback phrasing-variant selection")
+    ap.add_argument("--trace", action="store_true", help="print narration source (llm/fallback)")
     args = ap.parse_args(argv)
+
+    # Load .env so VOICEBOX_PROFILE_NAME (voice) and ANTHROPIC_API_KEY (narrator)
+    # are visible. override=False: an inline env var still wins over .env.
+    load_dotenv()
+
+    seed = args.seed if args.seed is not None else os.environ.get("BROCA_SEED")
+    if seed is not None:
+        banks.seed(int(seed))
 
     sources = load_sources(args.config)
     mem = Memory(MemoryStore(args.store), sources)
     session = Session()
 
     if args.question:
-        _handle(" ".join(args.question), mem, session, args.no_voice, args.voice_file)
+        _handle(" ".join(args.question), mem, session, args.no_voice, args.voice_file, args.trace)
         return 0
 
     voice_note = "voice on" if (voice_available() and not args.no_voice) else "text only"
@@ -72,7 +95,7 @@ def main(argv=None) -> int:
             continue
         if q.lower() in {"quit", "exit"}:
             break
-        _handle(q, mem, session, args.no_voice, args.voice_file)
+        _handle(q, mem, session, args.no_voice, args.voice_file, args.trace)
     return 0
 
 

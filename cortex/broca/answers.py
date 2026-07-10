@@ -10,18 +10,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# The only confidence shapes BROCA is allowed to emit. "partial" and "scope" are
-# explicit, non-fabricating extensions of the design doc's escalation phrasing.
-SHAPES = {"grounded", "inferred", "unknown", "partial", "scope"}
+# The six answer shapes BROCA is allowed to emit — never blended in one breath.
+# "conversational" is the only shape where personality is safe, because it makes
+# no factual claim about anything HIPPOCAMPUS holds.
+SHAPES = {"grounded", "inferred", "unknown", "partial", "scope", "conversational"}
 
 
 @dataclass
 class ShapedAnswer:
     shape: str
-    headline: str                     # brief lead — printed and spoken
+    headline: str                     # brief lead — printed and spoken (deterministic fallback)
     detail: str = ""                  # full text w/ citations — shown on expand
     spoken: str = ""                  # what say() voices; falls back to headline
     records: list[Any] = field(default_factory=list)  # provenance (MemoryRecord)
+    values: dict[str, Any] = field(default_factory=dict)  # fact packet for the narrator
 
     def voice_text(self) -> str:
         return self.spoken or self.headline

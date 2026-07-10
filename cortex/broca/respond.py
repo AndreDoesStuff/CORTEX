@@ -10,10 +10,9 @@ from __future__ import annotations
 
 from ..hippocampus.query import Memory
 from ..hippocampus.record import MemoryRecord
+from . import banks
 from .answers import Session, ShapedAnswer
 from .intent import Intent
-
-_UNKNOWN = "I don't have anything on that yet."
 
 
 # ---- factual, no-inference descriptions -------------------------------------
@@ -29,6 +28,25 @@ def _terse(mem: Memory, r: MemoryRecord) -> str:
             return f'a commit, "{r.raw["commit"]["message"].splitlines()[0]}"'
         return f"issue #{r.raw.get('number')} ({r.raw.get('state')})"
     return r.summary
+
+
+def _clean_citations(mem: Memory, recs: list[MemoryRecord]) -> list[str]:
+    """Citations the narrator may safely voice — Jira keys and GitHub issue
+    numbers only. Figma version ids and commit shas stay in `records` metadata
+    (provenance is preserved) but are kept out of the packet so their long digit
+    runs can't trip fact-validation."""
+    out: list[str] = []
+    for r in recs:
+        t = mem.type_of(r.source_id)
+        if t == "jira" and r.raw.get("key"):
+            out.append(r.raw["key"])
+        elif t == "github" and "commit" not in r.raw and r.raw.get("number") is not None:
+            out.append(f"#{r.raw['number']}")
+    seen: list[str] = []
+    for c in out:
+        if c not in seen:
+            seen.append(c)
+    return seen[:10]
 
 
 def _units(mem: Memory, recs: list[MemoryRecord]) -> list[str]:
@@ -48,7 +66,7 @@ def _units(mem: Memory, recs: list[MemoryRecord]) -> list[str]:
 
 
 def _unknown() -> ShapedAnswer:
-    return ShapedAnswer("unknown", _UNKNOWN)
+    return ShapedAnswer("unknown", banks.pick(banks.UNKNOWN))
 
 
 # ---- per-intent shaping -----------------------------------------------------
@@ -59,33 +77,28 @@ def _recent(mem: Memory, intent: Intent) -> ShapedAnswer:
     units = _units(mem, recs)
     n = len(units)
     if n == 1:
-        headline = f"One update on {intent.scope_label}: {units[0]}."
-    elif n == 2:
-        headline = (f"Two updates on {intent.scope_label} — {units[0]}, "
-                    f"and {units[1]}. Want either in detail?")
+        headline = banks.pick(banks.RECENT_SINGLE, item=units[0], scope=intent.scope_label)
     else:
-        headline = (f"{n} threads of activity on {intent.scope_label}, "
-                    f"most recent {recs[0].occurred_at[:10]}. "
-                    f"Want the details, or just the headline?")
+        headline = banks.pick(banks.RECENT_MULTI, count_phrase=f"{n} updates",
+                              scope=intent.scope_label, date=recs[0].occurred_at[:10])
     detail = mem.render(recs, collapse_batches=True)
+    values = {"count": n, "scope": intent.scope_label,
+              "most_recent_date": recs[0].occurred_at[:10],
+              "citations": _clean_citations(mem, recs)}
     return ShapedAnswer("grounded", headline, detail=detail,
-                        spoken=". ".join(units), records=recs)
+                        spoken=". ".join(units), records=recs, values=values)
 
 
 def _open(mem: Memory, intent: Intent) -> ShapedAnswer:
     recs = mem.open_work(intent.domain)
     if not recs:
         return _unknown()
-    n = len(recs)
-    if n <= 3:
-        items = "; ".join(_terse(mem, r) for r in recs)
-        headline = f"{n} open on {intent.domain_label}: {items}."
-    else:
-        headline = (f"{n} open on {intent.domain_label} right now. "
-                    f"Want them listed, or just the count?")
+    headline = banks.pick(banks.OPEN, count=len(recs), domain=intent.domain_label)
     detail = mem.render(recs, collapse_batches=False)
+    values = {"count": len(recs), "domain": intent.domain_label,
+              "citations": _clean_citations(mem, recs)}
     return ShapedAnswer("grounded", headline, detail=detail,
-                        spoken=headline, records=recs)
+                        spoken=headline, records=recs, values=values)
 
 
 def _assess(mem: Memory, intent: Intent) -> ShapedAnswer:
@@ -96,13 +109,13 @@ def _assess(mem: Memory, intent: Intent) -> ShapedAnswer:
         return _unknown()
     opn = [r for r in scoped if r.lifecycle_state == "open"]
     closed = [r for r in scoped if r.lifecycle_state == "closed"]
-    headline = (f"Looks like most of the older work on {intent.domain_label} got "
-                f"cleared out — {len(closed)} closed, {len(opn)} still open — but "
-                f"that's me reading the counts, not a 'done' status the data sets. "
-                f"Want the open ones?")
+    headline = banks.pick(banks.INFERRED, closed=len(closed), open_count=len(opn),
+                          domain=intent.domain_label)
     detail = mem.render(opn, collapse_batches=False)
+    values = {"closed": len(closed), "open_count": len(opn), "domain": intent.domain_label,
+              "citations": _clean_citations(mem, opn)}
     return ShapedAnswer("inferred", headline, detail=detail,
-                        spoken=headline, records=opn)
+                        spoken=headline, records=opn, values=values)
 
 
 def _comments(mem: Memory, intent: Intent) -> ShapedAnswer:
@@ -111,12 +124,13 @@ def _comments(mem: Memory, intent: Intent) -> ShapedAnswer:
     recs = mem.recent(source_id=sid, domain="axon") if sid else []
     recs = [r for r in recs if mem.type_of(r.source_id) == "figma"]
     if recs:
-        headline = (f"I've got version history for {intent.scope_label} — "
-                    f"{len(recs)} saves, last on {recs[0].occurred_at[:10]} — "
-                    f"but nothing on comments; I don't pull those yet.")
+        headline = banks.pick(banks.PARTIAL, count=len(recs), scope=intent.scope_label,
+                              date=recs[0].occurred_at[:10])
         detail = mem.render(recs, collapse_batches=True)
+        values = {"count": len(recs), "scope": intent.scope_label,
+                  "most_recent_date": recs[0].occurred_at[:10]}
         return ShapedAnswer("partial", headline, detail=detail,
-                            spoken=headline, records=recs)
+                            spoken=headline, records=recs, values=values)
     return ShapedAnswer(
         "partial",
         "I don't pull comments from any source yet — only Jira status, Figma "
@@ -124,12 +138,22 @@ def _comments(mem: Memory, intent: Intent) -> ShapedAnswer:
     )
 
 
-def _scope() -> ShapedAnswer:
-    return ShapedAnswer(
-        "scope",
-        "That's prioritization — I don't do that yet. I can tell you what's open "
-        "on AXON, or what's changed recently.",
-    )
+def _scope(intent: Intent) -> ShapedAnswer:
+    capability = "task creation" if "task" in intent.question.lower() else "prioritization"
+    alternative = "what's open on AXON, or what's changed recently"
+    return ShapedAnswer("scope", banks.pick(banks.SCOPE, capability=capability,
+                                            alternative=alternative),
+                        values={"capability": capability, "alternative": alternative})
+
+
+def _conversational(intent: Intent) -> ShapedAnswer:
+    bank = {
+        "greeting": banks.GREETING,
+        "gratitude": banks.GRATITUDE,
+        "capability": banks.CAPABILITY,
+        "banter": banks.BANTER,
+    }.get(intent.sub, banks.BANTER)
+    return ShapedAnswer("conversational", banks.pick(bank))
 
 
 def _more(session: Session) -> ShapedAnswer:
@@ -143,8 +167,10 @@ def _more(session: Session) -> ShapedAnswer:
 def respond(intent: Intent, mem: Memory, session: Session) -> ShapedAnswer:
     if intent.kind == "more":
         return _more(session)
+    if intent.kind == "conversational":
+        return _conversational(intent)
     if intent.kind == "scope":
-        return _scope()
+        return _scope(intent)
     if intent.kind == "respond":
         return _unknown()            # no messaging/response data in any source
     if intent.kind == "comments":

@@ -29,15 +29,49 @@ _RECENT = ("what's up", "whats up", "what's new", "whats new", "what happened",
            "any updates", "anything on", "latest", "recently", "this week",
            "today", "what's going on", "whats going on", "news", "update on")
 
+# Conversational routing (shape 6). Deliberately conservative: only fires when
+# there is NO plausible mapping to a real HIPPOCAMPUS query (the doc's guardrail).
+_GREETINGS = {"hi", "hey", "hello", "yo", "howdy", "sup"}
+_BANTER = ("alive", "conscious", "sentient", "are you real", "are you human",
+           "do you feel", "do you dream", "do you sleep", "have feelings",
+           "who are you", "what are you", "your name", "who made you",
+           "who built you", "tell me a joke", "how are you", "are you ok",
+           "are you there", "do you think", "do you have")
+_CAPABILITY = ("what can you do", "what do you do", "how do you work",
+               "what are you for", "capabilities", "what can i ask")
+# signals that a question DOES map to a real query — suppresses conversational
+_QUERY_WORDS = ("axon", "jira", "ticket", "figma", "table", "main branch",
+                "github", "repo", "commit", "open", "recent", "happen", "comment",
+                "closed", "status", "branch", "update", "backlog", "in progress",
+                "outstanding", "active", "left to do", "design", "vertebra")
+
+
+def _query_like(ql: str) -> bool:
+    return any(w in ql for w in _QUERY_WORDS)
+
+
+def _conversational_sub(ql: str) -> Optional[str]:
+    first = ql.split()[0] if ql.split() else ""
+    if first in _GREETINGS or ql.startswith(("good morning", "good evening", "good afternoon")):
+        return "greeting"
+    if "thank" in ql or "cheers" in ql or "appreciate" in ql:
+        return "gratitude"
+    if ql.strip() in {"help", "help me"} or any(p in ql for p in _CAPABILITY):
+        return "capability"
+    if any(p in ql for p in _BANTER):
+        return "banter"
+    return None
+
 
 @dataclass
 class Intent:
-    kind: str                 # more|scope|respond|comments|assess|open|recent|fallback
+    kind: str                 # more|conversational|scope|respond|comments|assess|open|recent|fallback
     source_id: Optional[str]
     domain: Optional[str]
     scope_label: str          # e.g. "the table branch", "AXON"
     domain_label: str         # e.g. "AXON", "the CORTEX repo"
     question: str
+    sub: str = ""             # conversational sub-type: greeting|gratitude|capability|banter
 
 
 def _resolve_target(ql: str):
@@ -63,9 +97,14 @@ def _has(ql: str, phrases) -> bool:
 def classify(question: str) -> Intent:
     ql = question.lower().strip()
     sid, dom, scope, dlabel = _resolve_target(ql)
+    sub = ""
 
+    conv = _conversational_sub(ql)
     if _has(ql, _MORE):
         kind = "more"
+    elif conv and not _query_like(ql):
+        # banter / self-reference with no plausible real query -> personality is safe
+        kind, sub = "conversational", conv
     elif _has(ql, _SCOPE):
         kind = "scope"
     elif _has(ql, _RESPOND):
@@ -82,4 +121,4 @@ def classify(question: str) -> Intent:
         kind = "fallback"
 
     return Intent(kind=kind, source_id=sid, domain=dom,
-                  scope_label=scope, domain_label=dlabel, question=question)
+                  scope_label=scope, domain_label=dlabel, question=question, sub=sub)
