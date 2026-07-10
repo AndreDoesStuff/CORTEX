@@ -15,7 +15,7 @@ from ..secrets import resolve
 from .base import Adapter, SourceSkipped
 
 _API_BASE = "https://api.atlassian.com/ex/jira/{cloud_id}/rest/api/3"
-_FIELDS = "summary,status,updated,issuetype,assignee,priority"
+_FIELDS = "summary,status,updated,issuetype,assignee,priority,resolution"
 
 
 class JiraAdapter(Adapter):

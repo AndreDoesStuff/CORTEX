@@ -13,6 +13,11 @@ venv/
 build/
 dist/
 
+# HIPPOCAMPUS memory store + THALAMUS snapshots — runtime state, contains raw
+# source payloads (never commit; may include third-party personal data)
+*.jsonl
+snapshot*.json
+
 # Editor / OS
 .DS_Store
 .idea/

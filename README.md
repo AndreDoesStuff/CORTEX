@@ -15,7 +15,6 @@ every signal into one shape — **unranked, unfiltered, read-only, no persistenc
 | `figma-axon-main` | **live** | version activity on the main branch (`category: fyi`) |
 | `figma-axon-table` | **live** | version activity on the table branch (`category: fyi`) |
 | `github-cortex` | **live** | `AndreDoesStuff/CORTEX` commits + issues/PRs (`category: job`) — private repo, needs `GITHUB_TOKEN` |
-| `notion-tbd` | disabled | recently edited pages — wire last |
 
 ## Setup
 
@@ -59,11 +58,10 @@ reported and skipped — it never kills the combined run.
 
 `raw` is mandatory on every record and is never dropped.
 
-## Wiring the disabled sources later
+## Adding more sources
 
 Edit [`sources.json`](sources.json):
-- **GitHub**: already enabled for `AndreDoesStuff/CORTEX`. Add more `"owner/repo"` strings to `github-cortex.config.repos` to watch additional repos.
-- **Notion**: set `notion-tbd.enabled: true`, fill `NOTION_TOKEN`, share pages with the integration.
+- **GitHub**: add more `"owner/repo"` strings to `github-cortex.config.repos` to watch additional repos.
 
 ## Layout
 

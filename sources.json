@@ -5,6 +5,7 @@
       "id": "jira-axon",
       "type": "jira",
       "enabled": true,
+      "domain": "axon",
       "cadence": "on-demand",
       "trust_level": "high",
       "auth": { "email": "env:JIRA_EMAIL", "token": "env:JIRA_API_TOKEN" },
@@ -19,6 +20,7 @@
       "id": "figma-axon-main",
       "type": "figma",
       "enabled": true,
+      "domain": "axon",
       "cadence": "on-demand",
       "trust_level": "high",
       "auth": { "token": "env:FIGMA_TOKEN" },
@@ -29,6 +31,7 @@
       "id": "figma-axon-table",
       "type": "figma",
       "enabled": true,
+      "domain": "axon",
       "cadence": "on-demand",
       "trust_level": "high",
       "auth": { "token": "env:FIGMA_TOKEN" },
@@ -39,21 +42,12 @@
       "id": "github-cortex",
       "type": "github",
       "enabled": true,
+      "domain": "cortex-self",
       "cadence": "on-demand",
       "trust_level": "high",
       "auth": { "token": "env:GITHUB_TOKEN" },
       "scope": "CORTEX repo — commits + issues/PRs. Token optional for public repos; required if private (raises rate limit either way).",
       "config": { "repos": ["AndreDoesStuff/CORTEX"] }
-    },
-    {
-      "id": "notion-tbd",
-      "type": "notion",
-      "enabled": false,
-      "cadence": "on-demand",
-      "trust_level": "medium",
-      "auth": { "token": "env:NOTION_TOKEN" },
-      "scope": "Lower priority — wire last. Searches pages/databases shared with the integration.",
-      "config": {}
     }
   ]
 }

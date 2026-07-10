@@ -18,6 +18,9 @@ class SourceConfig:
     trust_level: str
     auth: dict[str, str]
     scope: str
+    # HIPPOCAMPUS joins against this at query time (e.g. "axon" vs "cortex-self")
+    # instead of duplicating domain into every memory record.
+    domain: str = "unknown"
     config: dict[str, Any] = field(default_factory=dict)
 
 
@@ -35,6 +38,7 @@ def load_sources(path: str | Path) -> list[SourceConfig]:
                 trust_level=e.get("trust_level", "unknown"),
                 auth=e.get("auth", {}),
                 scope=e.get("scope", ""),
+                domain=e.get("domain", "unknown"),
                 config=e.get("config", {}),
             )
         )
