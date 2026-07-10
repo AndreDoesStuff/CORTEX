@@ -25,6 +25,9 @@ class Memory:
     def domain_of(self, source_id: str) -> str:
         return self._domain.get(source_id, "unknown")
 
+    def type_of(self, source_id: str) -> str:
+        return self._type.get(source_id, "unknown")
+
     # --- queries ---------------------------------------------------------
     def open_work(self, domain: str) -> list[MemoryRecord]:
         """Exit test 2: live work in a domain, by lifecycle_state alone."""

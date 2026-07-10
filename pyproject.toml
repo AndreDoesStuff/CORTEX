@@ -11,6 +11,7 @@ dependencies = [
 [project.scripts]
 cortex = "cortex.cli:main"
 hippocampus = "cortex.hippocampus.cli:main"
+broca = "cortex.broca.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
