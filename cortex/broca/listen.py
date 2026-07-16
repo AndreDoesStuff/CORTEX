@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import warnings
 from typing import Optional
 
@@ -36,6 +37,7 @@ _DOMAIN_PROMPT = os.environ.get(
 )
 
 _model = None  # lazy, cached across calls
+_model_lock = threading.Lock()  # guards the one-time load against the preload race
 
 
 def _log(msg: str) -> None:
@@ -44,9 +46,10 @@ def _log(msg: str) -> None:
 
 def _get_model():
     global _model
-    if _model is None:
-        from faster_whisper import WhisperModel
-        _model = WhisperModel(_MODEL_NAME, device="cpu", compute_type="int8")
+    with _model_lock:
+        if _model is None:
+            from faster_whisper import WhisperModel
+            _model = WhisperModel(_MODEL_NAME, device="cpu", compute_type="int8")
     return _model
 
 
@@ -109,8 +112,19 @@ def transcribe(audio: np.ndarray) -> str:
         return "".join(s.text for s in segments).strip()
 
 
+def _preload_model() -> None:
+    try:
+        _get_model()
+    except Exception as e:  # noqa: BLE001
+        _log(f"model preload failed ({type(e).__name__})")
+
+
 def listen() -> Optional[str]:
     """Record one spoken utterance and return its transcription (or None)."""
+    # Load the whisper model in the background WHILE the user speaks, so its ~1s
+    # load is hidden behind recording instead of paid after. transcribe() calls
+    # _get_model(), which blocks on the same lock only if the load isn't done yet.
+    threading.Thread(target=_preload_model, daemon=True).start()
     audio = record()
     if audio is None:
         return None

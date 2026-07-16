@@ -14,6 +14,7 @@ six shapes and their meaning are unchanged. Only how the words get chosen change
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any, Callable, Optional
 
@@ -128,6 +129,13 @@ def narrate(
     The fallback is the shape's proven deterministic template — not a downgrade,
     just the path you won't usually hear.
     """
+    # No credential -> don't import the SDK or build a doomed request. This skips
+    # ~1-2s of wasted work per answer when narration isn't configured. (When a
+    # client_factory is injected, e.g. in tests, honor it regardless.)
+    if client_factory is None and not (
+        os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+    ):
+        return fallback, "fallback:no-key"
     try:
         text = _call_llm(build_packet(shape, values), question, client_factory)
     except Exception as e:  # ImportError / auth / network / API — all degrade
