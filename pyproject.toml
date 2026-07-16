@@ -7,6 +7,9 @@ dependencies = [
     "httpx>=0.27",
     "python-dotenv>=1.0",
     "anthropic>=0.40",
+    "faster-whisper>=1.0",  # local offline STT (Phase 2b speech-in)
+    "sounddevice>=0.4",     # mic capture
+    "numpy>=1.24",
 ]
 
 [project.scripts]

@@ -66,6 +66,8 @@ def main(argv=None) -> int:
     ap.add_argument("--voice-file", help="write spoken audio to this .aiff (for testing)")
     ap.add_argument("--seed", type=int, help="pin fallback phrasing-variant selection")
     ap.add_argument("--trace", action="store_true", help="print narration source (llm/fallback)")
+    ap.add_argument("--listen", action="store_true",
+                    help="capture one spoken question from the mic (Phase 2b)")
     args = ap.parse_args(argv)
 
     # Load .env so VOICEBOX_PROFILE_NAME (voice) and ANTHROPIC_API_KEY (narrator)
@@ -79,6 +81,18 @@ def main(argv=None) -> int:
     sources = load_sources(args.config)
     mem = Memory(MemoryStore(args.store), sources)
     session = Session()
+
+    if args.listen:
+        from .listen import listen
+        print("🎤 listening — speak your question…", file=sys.stderr)
+        q = listen()
+        if not q:
+            print("(didn't catch anything — mic off, silent, or permission denied)",
+                  file=sys.stderr)
+            return 0
+        print(f'you said: "{q}"')
+        _handle(q, mem, session, args.no_voice, args.voice_file, args.trace)
+        return 0
 
     if args.question:
         _handle(" ".join(args.question), mem, session, args.no_voice, args.voice_file, args.trace)
